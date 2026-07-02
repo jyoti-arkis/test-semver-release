@@ -1,0 +1,77 @@
+name: 'Auto Tagging and Release'
+description: 'Creates semantic version tags and GitHub releases based on conventional commits'
+
+inputs:
+  token:
+    description: 'GitHub token'
+    required: true
+  create-release:
+    description: 'Whether to create GitHub releases'
+    required: false
+    default: 'true'
+  create-release-as-draft:
+    description: 'Create releases as draft'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+  - name: Calculate Semantic Version
+    id: semver
+    uses: PaulHatch/semantic-version@v5.4.0
+    with:
+      tag_prefix: 'v'
+      major_pattern: '/^(BREAKING CHANGE)(?:\([^)]+\))?: .+/'
+      major_regexp_flags: 'gmi'
+      minor_pattern: '/^(?:\s{0,3}\*\.?\s{0,3}|\s{0,3}\-\s{0,3})?(?:feat|feature|[Rr]elease)(?:\([^)]+\))?: .+/'
+      minor_regexp_flags: 'gmi'
+      version_format: '${major}.${minor}.${patch}'
+      search_commit_body: true
+      bump_each_commit: false
+      user_format_type: 'csv'
+      enable_prerelease_mode: false
+
+  - name: Validate Release Requirements
+    id: check-release
+    shell: bash
+    run: |
+      IS_TAGGED="${{ steps.semver.outputs.is_tagged }}"
+      VERSION_TYPE="${{ steps.semver.outputs.version_type }}"
+      VERSION_TAG="${{ steps.semver.outputs.version_tag }}"
+
+      if [ "$IS_TAGGED" = "true" ]; then
+        echo "required=false" >> $GITHUB_OUTPUT
+        echo "::notice::Current commit already tagged as ${VERSION_TAG}"
+      elif [ "$VERSION_TYPE" = "none" ]; then
+        echo "required=false" >> $GITHUB_OUTPUT
+        echo "::notice::No version change detected"
+      else
+        echo "required=true" >> $GITHUB_OUTPUT
+        echo "::notice::Creating tag ${VERSION_TAG} (type: ${VERSION_TYPE})"
+      fi
+
+  - name: Create Git Tag
+    if: steps.check-release.outputs.required == 'true' && inputs.create-release == 'true'
+    shell: bash
+    env:
+      GITHUB_TOKEN: ${{ inputs.token }}
+    run: |
+      TAG="${{ steps.semver.outputs.version_tag }}"
+      git config --global user.name "github-actions[bot]"
+      git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      git tag -a "$TAG" -m "Release $TAG"
+      git push origin "$TAG"
+      echo "::notice::Successfully created and pushed tag: ${TAG}"
+
+  - name: Create GitHub Release
+    if: steps.check-release.outputs.required == 'true' && inputs.create-release == 'true'
+    uses: softprops/action-gh-release@v2.4.1
+    with:
+      tag_name: ${{ steps.semver.outputs.version_tag }}
+      name: ${{ steps.semver.outputs.version_tag }}
+      generate_release_notes: true
+      draft: ${{ inputs.create-release-as-draft }}
+      prerelease: false
+      make_latest: true
+      token: ${{ inputs.token }}

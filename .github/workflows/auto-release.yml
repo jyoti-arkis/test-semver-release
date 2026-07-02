@@ -1,0 +1,29 @@
+name: Auto Release
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: 'auto-release @ ${{ github.ref }}'
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: Create Semantic Version Tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/autorelease
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          create-release: true
+          create-release-as-draft: false

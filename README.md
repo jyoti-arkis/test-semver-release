@@ -1,0 +1,2 @@
+# test-semver-release
+Test repo for validating semver autorelease with Release: pattern.
