@@ -24,7 +24,7 @@ runs:
       tag_prefix: 'v'
       major_pattern: '/^(BREAKING CHANGE)(?:\([^)]+\))?: .+/'
       major_regexp_flags: 'gmi'
-      minor_pattern: '/^(?:\s{0,3}\*\.?\s{0,3}|\s{0,3}\-\s{0,3})?(?:feat|feature|release)(?:\([^)]+\))?: .+/'
+      minor_pattern: '/^(?:\s{0,3}\*\.?\s{0,3}|\s{0,3}\-\s{0,3})?(?:feat|feature|release|rls)(?:\([^)]+\))?: .+/'
       minor_regexp_flags: 'gmi'
       version_format: '${major}.${minor}.${patch}'
       search_commit_body: true
